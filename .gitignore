@@ -1,0 +1,15 @@
+# Local stuff
+.DS_Store
+.ipynb_checkpoints/
+
+# Input data
+small_traffic_dataset/
+data/
+
+# Output (too big)
+*.dump.csv
+*.dump.xml
+
+# Misc
+old/
+test/
