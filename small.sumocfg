@@ -2,17 +2,27 @@
 
    <input>
        <net-file value="out/small.net.xml"/>
-      <additional-files value="out/small.routes.xml, out/small.flows.xml"/>
-      <netstate-dump value="out/small.dump.xml" />
+      <additional-files value="out/routeSampler/small.sampledRoutes.xml, out/small.detectors.additional.xml" />
    </input>
+
+   <output>
+      <edgedata-output value="out/small.edgedata.xml" />
+   </output>
 
    <processing>
       <extrapolate-departpos value="True" />
       <threads value="4" />
+      <time-to-teleport value="-1" />
    </processing>
 
    <time>
+      <end value="7200" />
    </time>
+
+   <mesoscopic>
+      <mesosim value="True" />
+      <meso-lane-queue value="True" />
+   </mesoscopic>
 
 </configuration>
 
