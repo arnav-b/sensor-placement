@@ -4,11 +4,27 @@ Simulations for the sensor placement project. Currently I only have results for 
 
 ## How to Run
 
-Max flow:
+### Max Flow
+
+Generate flows:
+
+`python $SUMO_HOME/tools/detector/flowrouter.py --debug -i 60 -n out/small.net.xml -d out/small.detectors.xml -f out/small.readings.csv -o out/flowrouter/small.routes.xml -e out/flowrouter/small.flows.xml -c "qPKW" --revalidate-detectors --vclass passenger`
+
+Run simulation:
 
 `sumo -c flowrouter.sumocfg -v`
 
-Random sampling:
+### Random Sampling
+
+Generate random routes (flags/options control hyperparameters):
+
+python $SUMO_HOME/tools/randomTrips.py -n out/small.net.xml -r out/routeSampler/small.rou.xml --lanes --fringe-factor 10 --random-routing-factor=1.5 -e 86400
+
+Run the constraint solver:
+
+`python $SUMO_HOME/tools/routeSampler.py -r out/routeSampler/small.rou.xml --edgedata-files out/routeSampler/small.edgeData.xml -o out/routeSampler/small.sampledRoutes.xml --optimize full`
+
+Run simulation:
 
 `sumo -c routeSampler.sumocfg -v`
 
