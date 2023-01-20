@@ -18,7 +18,7 @@ Run simulation:
 
 Generate random routes (flags/options control hyperparameters):
 
-python $SUMO_HOME/tools/randomTrips.py -n out/small.net.xml -r out/routeSampler/small.rou.xml --lanes --fringe-factor 10 --random-routing-factor=1.5 -e 86400
+`python $SUMO_HOME/tools/randomTrips.py -n out/small.net.xml -r out/routeSampler/small.rou.xml --lanes --fringe-factor 10 --random-routing-factor=1.5 -e 86400`
 
 Run the constraint solver:
 
