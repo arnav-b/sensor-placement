@@ -9,6 +9,7 @@ data/
 # Output (too big)
 *.dump.csv
 *.dump.xml
+*.edgedata.xml
 
 # Misc
 old/
