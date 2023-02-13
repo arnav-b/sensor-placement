@@ -10,6 +10,8 @@ data/
 *.dump.csv
 *.dump.xml
 *.edgedata.xml
+*.sampledRoutes.xml
+*.edgedata.csv
 
 # Misc
 old/
