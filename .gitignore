@@ -12,7 +12,11 @@ data/
 *.edgedata.xml
 *.sampledRoutes.xml
 *.edgedata.csv
+*.pdf
+*.png
 
 # Misc
 old/
 test/
+results/
+__pycache__/
