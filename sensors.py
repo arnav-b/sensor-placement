@@ -228,7 +228,7 @@ def dict2vect(G, labels):
 
 def vect2dict(G, x):
     labels = {}
-    for i, e in enumerate(G.edges()):
+    for i, e in enumerate(nx.line_graph(G).nodes()):
         labels[e] = x[i]
     return labels
     
@@ -248,7 +248,7 @@ def choose_sensors(G, labeled_edges, predict, evaluate, k=None, lazy=True, cores
         -- evaluate: prediction, true_values -> loss
     """
     if k == None:
-        k = int(G.number_of_edges() / 50)
+        k = int(G.number_of_edges())
     
     sensors = []
         
@@ -282,7 +282,7 @@ def choose_sensors(G, labeled_edges, predict, evaluate, k=None, lazy=True, cores
 
             # Next top
             delta_next, s_next = heapq.heappop(deltas)
-            delta_next -= current
+            #delta_next -= current
             
             if debug:
                 print("sensor {} delta {}".format(s, delta))
@@ -293,11 +293,11 @@ def choose_sensors(G, labeled_edges, predict, evaluate, k=None, lazy=True, cores
                 
             # If the change drops it below the next best, recalculate the next best and continue
             while delta > delta_next:
+                delta_next = evaluate(predict(G, {e: labeled_edges[e] for e in sensors} | {s_next : labeled_edges[s_next]}), 
+                             labeled_edges) - current
                 if debug:
                     print("sensor {} delta {}".format(s, delta))
                     print("next top sensor {} delta {}".format(s_next, delta_next))
-                delta_next = evaluate(predict(G, {e: labeled_edges[e] for e in sensors} | {s_next : labeled_edges[s_next]}), 
-                             labeled_edges) - current
                 if delta_next < delta:
                     heapq.heappush(deltas, (delta, s))
                     delta, s = delta_next, s_next
@@ -403,13 +403,14 @@ def al_flows_rrqr(G, ratio):
     return selected
 
 def al_flows_rb(G, ratio, n_dim=2):
-    A = nx.adjacency_matrix(G).todense()
+    A = nx.adjacency_matrix(G.to_undirected()).todense()
     nodes = list(G.nodes())
     embedding = SpectralEmbedding(n_components=n_dim, affinity='precomputed')
     spec_emb = embedding.fit_transform(A)
     selected = []
     
     clusters = [list(np.arange(0,G.number_of_nodes()))]
+    mark_selected = {}
     
     while len(selected) < int(ratio*G.number_of_edges()):
         max_cluster = 0
@@ -421,26 +422,39 @@ def al_flows_rb(G, ratio, n_dim=2):
         cluster = clusters[max_cluster]
         
         if len(cluster) <= 2:
-            break
+            clusters[max_cluster] = []
+            clusters.append([])
+            clusters.append([])
             
-        X = spec_emb[cluster,:]
-                
-        labels = KMeans(n_clusters=2, random_state=0, n_init=10).fit(X).labels_
-        clusters[max_cluster] = []
-        clusters.append([])
-        
-        for i in range(len(cluster)):
-            if labels[i] == 0:
-                clusters[-1].append(cluster[i])
-            else:
-                clusters[-2].append(cluster[i])
-        
+            clusters[-1].append(cluster[0])
+            clusters[-2].append(cluster[1])
+        else:    
+            X = spec_emb[cluster,:]
+
+            labels = KMeans(n_clusters=2, random_state=0, n_init=10).fit(X).labels_
+            
+            clusters[max_cluster] = []
+            clusters.append([])
+            clusters.append([])
+
+            for i in range(len(cluster)):
+                if labels[i] == 0:
+                    clusters[-1].append(cluster[i])
+                else:
+                    clusters[-2].append(cluster[i])
+
         for v in clusters[-1]:
             for u in clusters[-2]:
-                if G.has_edge(nodes[v], nodes[u]):
+                if G.has_edge(nodes[v], nodes[u]) and (nodes[v],nodes[u]) not in mark_selected:
                     selected.append((nodes[v], nodes[u]))
-                
+                    mark_selected[(nodes[v],nodes[u])] = True
                     if len(selected) >= int(ratio*G.number_of_edges()):
-                        break
-                        
+                        return selected
+                
+                if G.has_edge(nodes[u], nodes[v]) and (nodes[u],nodes[v]) not in mark_selected:
+                    selected.append((nodes[u], nodes[v]))
+                    mark_selected[(nodes[u],nodes[v])] = True
+                    if len(selected) >= int(ratio*G.number_of_edges()):
+                        return selected
+
     return selected
