@@ -179,6 +179,7 @@ def speed_prediction(G, labelled_flows, lamb=1e-6):
     '''
     n_labelled_edges = len(labelled_flows)
     line_G = nx.line_graph(G)
+        
     A = nx.adjacency_matrix(line_G)
     f0 = []
     
@@ -288,8 +289,8 @@ def choose_sensors(G, labeled_edges, predict, evaluate, k=None, lazy=True, cores
                 print("sensor {} delta {}".format(s, delta))
                 print("next top sensor {} delta {}".format(s_next, delta_next))
             
-            if delta <= delta_next:
-                heapq.heappush(deltas, (delta_next, s_next))
+#             if delta <= delta_next:
+                
                 
             # If the change drops it below the next best, recalculate the next best and continue
             while delta > delta_next:
@@ -298,20 +299,29 @@ def choose_sensors(G, labeled_edges, predict, evaluate, k=None, lazy=True, cores
                 if debug:
                     print("sensor {} delta {}".format(s, delta))
                     print("next top sensor {} delta {}".format(s_next, delta_next))
-                if delta_next < delta:
+                    
+                if delta_next <= delta:
                     heapq.heappush(deltas, (delta, s))
                     delta, s = delta_next, s_next
                     if debug:
-                        print("next > delta, len(deltas)", len(deltas))
+                        print("next < delta, len(deltas)", len(deltas))
                 else:
                     heapq.heappush(deltas, (delta_next, s_next))
                     if debug:
-                        print("delta > next, len(deltas):", len(deltas))
-                    delta_next, s_next = heapq.heappop(deltas)
+                        print("nest > delta, len(deltas):", len(deltas))
+                
+                delta_next, s_next = heapq.heappop(deltas)
                     
-                    if delta <= delta_next:
-                        heapq.heappush(deltas, (delta_next, s_next))
-                        break
+#                     if delta <= delta_next:
+#                         heapq.heappush(deltas, (delta_next, s_next))
+#                         break
+            
+            heapq.heappush(deltas, (delta_next, s_next))
+        
+            if len(deltas) != len(labeled_edges) - i - 1:
+                print("error: iteration", i, "len(deltas):", len(deltas))
+                return sensors
+            
             if debug:    
                 print("iteration", i, "len(deltas):", len(deltas))
                 print("selecting sensor {} delta {}, next sensor {} has delta {}".format(s, delta, s_next, delta_next))
@@ -319,20 +329,19 @@ def choose_sensors(G, labeled_edges, predict, evaluate, k=None, lazy=True, cores
 
             sensors.append(s)
     else:
+        candidates = list(labeled_edges.keys())
         for i in tqdm(range(k)):
-            current = evaluate(predict(G, {e: labeled_edges[e] for e in sensors}), labeled_edges)
-            if debug:
-                print("iteration {}, current {}".format(i, current))
-            opt, opt_cost = None, float("inf")
-            for s in G.edges():
-                if s not in sensors:
-                    cost = evaluate(predict(G, {e : labeled_edges[e] for e in sensors} | {s : labeled_edges[s]}),
-                                   labeled_edges)
-                    if debug:
-                        print("sensor {} cost {} opt {}".format(s, cost, opt_cost))
-                    if cost < opt_cost:
-                        opt, opt_cost = s, cost
-            sensors.append(opt)
+            sensor_labels = {s: labeled_edges[s] for s in sensors}
+            with Pool(cores) as pool:
+                errs = pool.map(lambda e: (evaluate(predict(G, sensor_labels | {e : labeled_edges[e]}), labeled_edges), e), 
+                              candidates)
+                s = min(errs, key=lambda x: x[0])
+                if debug:
+                    print("choosing sensor", s)
+            
+            sensors.append(s[1])
+            candidates.remove(s[1])
+            
         
     return sensors
 
