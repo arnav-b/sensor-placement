@@ -1,33 +1,15 @@
 # Sensor Placement
 
-Simulations for the sensor placement project. Currently I only have results for the small L.A. network. Files produced are located in `out` divided by algorithm. The max flow solution is in `out/flowrouter` and the random sampling/ILP algorithm is in `out/routeSampler`. 
+Code for sensor placement experiments. 
 
-## How to Run
+## Organization
 
-### Max Flow
+Utility functions are in `sensors.py`. Experiments are in `flows-tntp.ipynb` (greedy flow selection), `speeds.ipynb` (greedy smooth selection), and `unknown-flows.ipynb` (unknown/partially unknown/noisy flows). 
 
-Generate flows:
+Some unsuccessful attempts to generate realistic flows with SUMO are in `out`. 
 
-`python $SUMO_HOME/tools/detector/flowrouter.py --debug -i 60 -n out/small.net.xml -d out/small.detectors.xml -f out/small.readings.csv -o out/flowrouter/small.routes.xml -e out/flowrouter/small.flows.xml -c "qPKW" --revalidate-detectors --vclass passenger`
+## Datasets
 
-Run simulation:
+Transportation networks dataset is at https://github.com/bstabler/TransportationNetworks. 
 
-`sumo -c flowrouter.sumocfg -v`
-
-### Random Sampling
-
-Generate random routes (flags/options control hyperparameters):
-
-`python $SUMO_HOME/tools/randomTrips.py -n out/small.net.xml -r out/routeSampler/small.rou.xml --lanes --fringe-factor 10 --random-routing-factor=1.5 -e 86400`
-
-Run the constraint solver:
-
-`python $SUMO_HOME/tools/routeSampler.py -r out/routeSampler/small.rou.xml --edgedata-files out/routeSampler/small.edgeData.xml -o out/routeSampler/small.sampledRoutes.xml --optimize full`
-
-Run simulation:
-
-`sumo -c routeSampler.sumocfg -v`
-
-## Results
-
-Best results to date are in `out/routeSampler/small.edgedata.csv`. 
+L.A. dataset is in `out/small.results.csv`. 
