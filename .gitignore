@@ -17,6 +17,7 @@ data/
 
 # Misc
 old/
+sumo/
 test/
 results/
 __pycache__/
