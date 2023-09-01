@@ -12,10 +12,23 @@ def run_tntp_experiment(filename, prefix):
     evaluator.write_results(prefix)
     
 def main():
-    for p in ["small", "sdc", "lac", "sfc"]:
-        print("running sensor selection on {}".format(p))
-        run_experiment(p)
-        print()
+#     for p in ["small", "sdc", "lac", "sfc"]:
+#         print("running sensor selection on {}".format(p))
+#         run_experiment(p)
+#         print()
+        
+    tntp_files = [
+        "data/Anaheim/Anaheim_flow.tntp",
+        "data/Barcelona/Barcelona_flow.tntp",
+        "data/Chicago-Sketch/ChicagoSketch_flow.tntp",
+        "data/Winnipeg/Winnipeg_flow.tntp"
+    ]
+    
+    tntp_prefixes = ["Anaheim", "Barcelona", "Chicago", "Winnipeg"]
+    
+    for filename, prefix in zip(tntp_files, tntp_prefixes):
+        print("running sensor selection on {}".format(prefix))
+        run_tntp_experiment(filename, prefix)
         
 if __name__ == "__main__":
     main()

@@ -9,7 +9,7 @@ from sklearn.manifold import SpectralEmbedding
 from sklearn.cluster import KMeans
 import random
 
-from sensors.utils.metrics import mse
+from sensors.utils.metrics import mse, dict2vect
 from sensors.flows.flowprediction import *
 
 class LazyEvaluator:
@@ -18,18 +18,8 @@ class LazyEvaluator:
         self.labeled_edges = labeled_edges
         self.sensors = []
         self.debug = debug
-        
-        current = self.evaluate([])
-        deltas = []
-        
-        self.debug_print("calculating initial errors")
-        
-        for e in tqdm(self.labeled_edges):
-            deltas.append((self.evaluate([e]) - current, e))
-            
-        heapq.heapify(deltas)
-        self.deltas = deltas
-        
+        self.deltas = []
+                
     def set_sensors(self, sensors):
         self.sensors = sensors
         
@@ -71,12 +61,20 @@ class LazyEvaluator:
         return s, delta
     
     def al_flows_greedy(self, ratio):
-        self.debug_print("choosing sensors")
-        
         k = int(ratio * len(self.labeled_edges))
         
         if k <= len(self.sensors):
             return self.sensors[:k]
+        
+        self.debug_print("calculating initial errors")
+        
+        current = self.evaluate([])
+        for e in tqdm(self.labeled_edges):
+            self.deltas.append((self.evaluate([e]) - current, e))
+            
+        heapq.heapify(self.deltas)
+        
+        self.debug_print("choosing sensors")
 
         for i in range(len(self.sensors), k):
             s, delta = self.pop()
@@ -84,10 +82,12 @@ class LazyEvaluator:
 
         return self.sensors
     
-    def al_flows_rrqr(self, ratio):
+    def al_flows_rrqr(self, ratio, weighted=True):
         B = nx.incidence_matrix(self.G, oriented=True).todense()
         VC = scipy.linalg.null_space(B)
-        q, r, p = scipy.linalg.qr(VC.T, pivoting=True)
+        U, s, Vh = scipy.linalg.svd(B)
+        f = dict2vect(self.G, self.labeled_edges)
+        q, r, p = scipy.linalg.qr(Vh @ np.diag(f), pivoting=True)
         edges = list(self.G.edges())
         selected = []
 
@@ -158,7 +158,11 @@ class LazyEvaluator:
         return selected
         
     def al_flows_random(self, ratio):
-        return random.sample(list(self.labeled_edges.keys()), ratio * len(self.labeled_edges)) 
+        return random.sample(list(self.labeled_edges.keys()), int(ratio * len(self.labeled_edges)))
+    
+    def al_flows_max(self, ratio):
+        k = int(ratio * len(self.labeled_edges))
+        return sorted(self.labeled_edges, key=self.labeled_edges.get, reverse=True)[:k]
     
     def predict(self, sensors):
         return flow_prediction(self.G, {s: self.labeled_edges[s] for s in sensors})
@@ -176,6 +180,8 @@ class LazyEvaluator:
         rb_sensors, rb_res = [], {}
         if len(self.labeled_edges) == self.G.number_of_edges():
             rb_sensors, rb_res = self.al_flows_rb(1), {0: 0}
+            
+        max_sensors, max_res = self.al_flows_max(1), {0: 0}
         
         self.debug_print("running experiment")
         
@@ -184,6 +190,7 @@ class LazyEvaluator:
             greedy_res[k / len(self.labeled_edges)] = self.get_pred_correlation(greedy_sensors[:k])
             rrqr_res[k / len(self.labeled_edges)] = self.get_pred_correlation(rrqr_sensors[:k])
             rand_res[k / len(self.labeled_edges)] = self.get_pred_correlation(rand_sensors[:k])
+            max_res[k / len(self.labeled_edges)] = self.get_pred_correlation(max_sensors[:k])
             
             if rb_sensors:
                 rb_res[k / len(self.labeled_edges)] = self.get_pred_correlation(rb_sensors[:k])
@@ -192,7 +199,8 @@ class LazyEvaluator:
             "greedy": greedy_res,
             "rrqr": rrqr_res,
             "random": rand_res,
-            "rb": rb_res
+            "rb": rb_res,
+            "max": max_res
         }
     
     def write_results(self, prefix):
