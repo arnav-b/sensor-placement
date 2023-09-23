@@ -76,17 +76,72 @@ class LazyEvaluator:
         
         self.debug_print("choosing sensors")
 
-        for i in range(len(self.sensors), k):
+        for i in tqdm(range(len(self.sensors), k)):
             s, delta = self.pop()
             self.debug_print("selected {} of {}, delta {}".format(i+1, k, delta))
 
         return self.sensors
     
+    def al_flows_cycles(self, ratio):
+        G_undirected = self.G.to_undirected()
+        m = G_undirected.number_of_edges()
+        n = G_undirected.number_of_nodes()
+
+        edges = list(G_undirected.edges())
+        edge2idx = {}
+        for i, (u, v) in enumerate(G_undirected.edges()):
+            edge2idx[(u, v)] = i
+            edge2idx[(v, u)] = i
+
+        # Generate a cycle basis, and fill in corresponding vectors
+        V_C = np.zeros((G_undirected.number_of_edges(), m))
+        basis = nx.cycle_basis(G_undirected) 
+        basis.sort(key=len)
+        
+        for j, c in enumerate(basis):
+            for i in range(len(c)):
+                u, v = c[i], c[(i + 1) % len(c)]
+                if (u, v) in G_undirected.edges():
+                    V_C[edge2idx[(u, v)]][j] = 1 / len(c) 
+                else:
+                    V_C[edge2idx[(v, u)]][j] = -1 / len(c) 
+
+        # Choose a non-critical edge from each cycle
+        selected = []
+        for c in range(m - n + 1):
+            s = -1
+            found = False
+            for e in range(m):
+                if V_C[e][c] != 0:
+                    # This edge is in the cycle
+                    if (np.linalg.norm(V_C[e]) - abs(V_C[e][c]) < 0.001 and not found) or s < 0:
+                        # Either this is a non-critical edge OR we haven't found a non-critical
+                        # edge yet, so use any edge in the cycle 
+                        found = (s >= 0)
+                        s = e
+            
+            # Add edge to sensors
+            # If edge is bidirectional, add both directions
+            u, v = edges[s]
+            if (u, v) in self.G.edges():
+                selected.append((u, v))
+            if (v, u) in self.G.edges():
+                selected.append((v, u))
+
+            # If over the limit, return
+            if len(selected) > ratio * self.G.number_of_edges():
+                return selected
+
+        return selected
+    
     def al_flows_rrqr(self, ratio, weighted=True):
         B = nx.incidence_matrix(self.G, oriented=True).todense()
         VC = scipy.linalg.null_space(B)
         U, s, Vh = scipy.linalg.svd(B)
-        f = dict2vect(self.G, self.labeled_edges)
+        if weighted:
+            f = dict2vect(self.G, self.labeled_edges)
+        else:
+            f = np.ones(self.G.number_of_edges())
         q, r, p = scipy.linalg.qr(Vh @ np.diag(f), pivoting=True)
         edges = list(self.G.edges())
         selected = []
@@ -173,7 +228,7 @@ class LazyEvaluator:
                            [self.labeled_edges[e] for e in self.labeled_edges])[0][1]
     
     def get_results(self, samples=20):
-        rrqr_sensors, rrqr_res = self.al_flows_rrqr(1), {0: 0}
+        rrqr_sensors, rrqr_res = self.al_flows_rrqr(1, weighted=False), {0: 0}
         rand_sensors, rand_res = self.al_flows_random(1), {0: 0}
         greedy_sensors, greedy_res = self.al_flows_greedy(1), {0: 0}
         

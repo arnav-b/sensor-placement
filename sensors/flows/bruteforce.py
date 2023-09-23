@@ -1,4 +1,5 @@
 from sensors.flows.lazy import LazyEvaluator
+# from multiprocessing import Pool
 
 class BruteForceEvaluator(LazyEvaluator):
     def __init__(self, G, labeled_edges):
@@ -6,9 +7,11 @@ class BruteForceEvaluator(LazyEvaluator):
         self.candidates = list(labeled_edges.keys())
         
     def pop(self, cores=8):
-        with Pool(cores) as pool:
-            errs = pool.map(lambda e: (self.evaluate(self.sensors + [e]), e), self.candidates)
-            s = min(errs, key=lambda x: x[0])
+        errs = []
+        for e in set(self.candidates).difference(self.sensors):
+            errs.append((self.evaluate(self.sensors + [e]), e))
+            
+        s = min(errs, key=lambda x: x[0])
             
         self.candidates.remove(s[1])
         self.sensors.append(s[1])
